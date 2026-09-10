@@ -57,7 +57,7 @@ function App() {
 
   if (loading && !data) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-950">
+      <div className="min-h-screen bg-surface-50 dark:bg-surface-950 min-w-0">
         <Header />
         <LoadingOverlay message="Investigating wallet..." />
       </div>
@@ -65,24 +65,24 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-50">
+    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-50 min-w-0">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="container-page py-6 sm:py-8 min-w-0">
         <BackendStatusBar health={backendHealth} />
 
-        <section className="mb-8 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div>
+        <section className="mb-8 animate-fade-in min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 min-w-0">
+            <div className="min-w-0">
               <h2 className="page-title">Investigation Dashboard</h2>
               <p className="page-subtitle">Search for a wallet address or transaction ID to begin analysis</p>
             </div>
             {data && (
               <button
                 onClick={handleNewSearch}
-                className="btn-secondary flex items-center gap-2"
+                className="btn-secondary flex items-center gap-2 flex-shrink-0"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 New Search
@@ -111,12 +111,12 @@ function App() {
         )}
 
         {data && (
-          <div className="space-y-6 animate-slide-up" role="main">
+          <div className="space-y-6 animate-slide-up min-w-0" role="main">
             <WalletOverviewCards data={data} />
 
             <RiskSection data={data} />
 
-            <div className="card-elevated overflow-hidden animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <div className="card-elevated overflow-hidden animate-slide-up min-w-0" style={{ animationDelay: '100ms' }}>
               <Suspense fallback={<TransactionGraphSkeleton />}>
                 <TransactionGraph
                   data={data.graph}
@@ -129,11 +129,11 @@ function App() {
               </Suspense>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 animate-slide-up" style={{ animationDelay: '150ms' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
+              <div className="lg:col-span-2 animate-slide-up min-w-0" style={{ animationDelay: '150ms' }}>
                 <TransactionStats data={data} />
               </div>
-              <div className="lg:col-span-1 animate-slide-up" style={{ animationDelay: '200ms' }}>
+              <div className="lg:col-span-1 animate-slide-up min-w-0" style={{ animationDelay: '200ms' }}>
                 <RecentTransactionsTable
                   transactions={data.recent_transactions}
                   loading={false}
@@ -149,9 +149,9 @@ function App() {
         )}
       </main>
 
-      <footer className="border-t border-surface-200 dark:border-surface-700 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-xs text-surface-500 dark:text-surface-400">
+      <footer className="border-t border-surface-200 dark:border-surface-700 mt-12 min-w-0">
+        <div className="container-page py-4 min-w-0">
+          <p className="text-center text-xs text-surface-500 dark:text-surface-400 truncate">
             Bitcoin Transaction Analyzer • Smart India Hackathon 2026 • PS 26146 • Offline Mode
           </p>
         </div>
@@ -161,28 +161,39 @@ function App() {
 }
 
 function BackendStatusBar({ health }) {
-  if (!health) return null
+  if (health === null) {
+    return (
+      <div className="mb-6 px-4 py-3 rounded-xl border bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800 flex items-center justify-between gap-4 flex-wrap" role="status" aria-live="polite" aria-busy="true">
+        <div className="flex items-center gap-3 flex-wrap min-w-0">
+          <span className="w-2.5 h-2.5 rounded-full bg-warning-500 animate-pulse flex-shrink-0" aria-hidden="true" />
+          <span className="text-sm font-medium text-surface-700 dark:text-surface-300">Backend: Checking...</span>
+        </div>
+        <div className="text-xs text-surface-500 dark:text-surface-400 font-mono flex-shrink-0">—</div>
+      </div>
+    )
+  }
 
-  const isHealthy = health.status === 'ok' && health.offline
+  const isConnected = health.status === 'ok'
+  const isError = health.status === 'error'
 
   return (
-    <div className={`mb-6 px-4 py-3 rounded-xl border flex items-center justify-between gap-4 ${isHealthy
+    <div className={`mb-6 px-4 py-3 rounded-xl border flex items-center justify-between gap-4 flex-wrap ${isConnected
       ? 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800'
       : 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-800'
     }`} role="status" aria-live="polite">
-      <div className="flex items-center gap-3">
-        <span className={`w-2.5 h-2.5 rounded-full ${isHealthy ? 'bg-success-500 animate-pulse-ring' : 'bg-danger-500'}`} aria-hidden="true" />
-        <span className="text-sm font-medium text-surface-700 dark:text-surface-300">
-          Backend: {isHealthy ? 'Online (Offline Mode)' : 'Offline'}
+      <div className="flex items-center gap-3 flex-wrap min-w-0">
+        <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-success-500 animate-pulse-ring' : 'bg-danger-500'} flex-shrink-0`} aria-hidden="true" />
+        <span className="text-sm font-medium text-surface-700 dark:text-surface-300 truncate">
+          Backend: {isConnected ? 'Connected' : 'Disconnected'}
         </span>
         {health.trained_at && (
-          <span className="text-xs text-surface-500 dark:text-surface-400 px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded-full font-mono">
+          <span className="text-xs text-surface-500 dark:text-surface-400 px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded-full font-mono flex-shrink-0">
             Model: {new Date(health.trained_at).toLocaleString()}
           </span>
         )}
       </div>
-      <div className="text-xs text-surface-500 dark:text-surface-400 font-mono">
-        {health.status} • {health.offline ? 'Air-gapped' : 'Connected'}
+      <div className="text-xs text-surface-500 dark:text-surface-400 font-mono flex-shrink-0">
+        {health.status} • {health.offline ? 'Air-gapped (Offline Mode)' : 'Online'}
       </div>
     </div>
   )
@@ -190,7 +201,7 @@ function BackendStatusBar({ health }) {
 
 function TransactionGraphSkeleton() {
   return (
-    <div className="h-[500px] animate-pulse animate-shimmer">
+    <div className="h-[500px] animate-pulse animate-shimmer min-w-0">
       <div className="p-4 border-b border-surface-200 dark:border-surface-700">
         <div className="h-6 bg-surface-200 dark:bg-surface-700 rounded w-1/4" />
       </div>
@@ -203,39 +214,39 @@ function AnomalyInfo({ anomaly }) {
   const { is_anomaly, anomaly_score, threshold, model_version, model_trained_at } = anomaly
 
   return (
-    <div className="card p-6 animate-slide-up" style={{ animationDelay: '250ms' }}>
+    <div className="card p-6 animate-slide-up min-w-0" style={{ animationDelay: '250ms' }}>
       <h3 className="section-title">
-        <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
         </svg>
         ML Anomaly Detection
       </h3>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 min-w-0">
         <div className={`p-4 rounded-xl ${is_anomaly
           ? 'bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800'
           : 'bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800'
         }`}>
           <p className="text-sm text-surface-500 dark:text-surface-400">Status</p>
-          <p className={`text-3xl font-bold font-display ${is_anomaly ? 'text-danger-600 dark:text-danger-400' : 'text-success-600 dark:text-success-400'}`}>
+          <p className={`text-3xl font-bold font-display ${is_anomaly ? 'text-danger-600 dark:text-danger-400' : 'text-success-600 dark:text-success-400'} truncate`}>
             {is_anomaly ? 'ANOMALOUS' : 'NORMAL'}
           </p>
         </div>
-        <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700">
+        <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700 min-w-0">
           <p className="text-sm text-surface-500 dark:text-surface-400">Anomaly Score</p>
-          <p className="text-3xl font-bold font-mono text-surface-900 dark:text-surface-100">{anomaly_score?.toFixed(4) ?? '—'}</p>
+          <p className="text-3xl font-bold font-mono text-surface-900 dark:text-surface-100 truncate">{anomaly_score?.toFixed(4) ?? '—'}</p>
         </div>
-        <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700">
+        <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700 min-w-0">
           <p className="text-sm text-surface-500 dark:text-surface-400">Threshold</p>
-          <p className="text-3xl font-bold font-mono text-surface-900 dark:text-surface-100">{threshold?.toFixed(4) ?? '—'}</p>
+          <p className="text-3xl font-bold font-mono text-surface-900 dark:text-surface-100 truncate">{threshold?.toFixed(4) ?? '—'}</p>
         </div>
-        <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700">
+        <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700 min-w-0">
           <p className="text-sm text-surface-500 dark:text-surface-400">Model Version</p>
           <p className="text-sm font-mono text-surface-900 dark:text-surface-100 truncate">{model_version}</p>
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-surface-500 dark:text-surface-400">
+      <p className="mt-4 text-xs text-surface-500 dark:text-surface-400 break-words">
         Trained: {model_trained_at ? new Date(model_trained_at).toLocaleString() : 'Unknown'} •
         <span className="ml-2">Anomaly score represents deviation from normal behavioral patterns. Higher scores = more unusual.</span>
       </p>

@@ -5,18 +5,24 @@
 @tailwind utilities;
 
 @layer base {
-  * {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
     @apply border-surface-200 dark:border-surface-700;
   }
 
   html {
     @apply scroll-smooth;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
     @apply bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-50 antialiased font-sans;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    min-width: 0;
+    overflow-x: hidden;
   }
 
   ::selection {
@@ -46,6 +52,26 @@
 
   ::-webkit-scrollbar-corner {
     @apply bg-transparent;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
   }
 }
 
@@ -79,11 +105,13 @@
   }
 
   .card {
-    @apply bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-300;
+    @apply bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-sm transition-shadow duration-300;
+    min-width: 0;
   }
 
   .card-elevated {
     @apply bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-lg;
+    min-width: 0;
   }
 
   .card-interactive {
@@ -92,6 +120,7 @@
 
   .input {
     @apply w-full px-4 py-2.5 bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 rounded-lg text-surface-900 dark:text-surface-100 placeholder-surface-400 dark:placeholder-surface-500 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:bg-surface-100 dark:disabled:bg-surface-800 disabled:cursor-not-allowed;
+    min-width: 0;
   }
 
   .input-sm {
@@ -99,7 +128,7 @@
   }
 
   .badge {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-full;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-full whitespace-nowrap shrink-0;
   }
 
   .badge-success {
@@ -127,7 +156,8 @@
   }
 
   .table-container {
-    @apply overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900;
+    @apply rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 overflow-x-auto;
+    min-width: 0;
   }
 
   .table-header {
@@ -135,7 +165,7 @@
   }
 
   .table-header-cell {
-    @apply px-4 py-3 text-left text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider;
+    @apply px-4 py-3 text-left text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider whitespace-nowrap;
   }
 
   .table-cell {
@@ -151,7 +181,7 @@
   }
 
   .section-title {
-    @apply text-lg font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2 font-display;
+    @apply text-lg font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2 font-display truncate;
   }
 
   .section-subtitle {
@@ -159,7 +189,7 @@
   }
 
   .page-title {
-    @apply text-2xl font-bold text-surface-900 dark:text-surface-100 tracking-tight font-display;
+    @apply text-2xl font-bold text-surface-900 dark:text-surface-100 tracking-tight font-display truncate;
   }
 
   .page-subtitle {
@@ -167,11 +197,11 @@
   }
 
   .stat-value {
-    @apply text-2xl sm:text-3xl font-bold font-mono tabular-nums text-surface-900 dark:text-surface-100;
+    @apply text-2xl sm:text-3xl font-bold font-mono tabular-nums text-surface-900 dark:text-surface-100 truncate;
   }
 
   .stat-label {
-    @apply text-sm font-medium text-surface-500 dark:text-surface-400;
+    @apply text-sm font-medium text-surface-500 dark:text-surface-400 truncate;
   }
 
   .divider {
@@ -188,6 +218,24 @@
 
   .card-hover {
     @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:border-brand-300 dark:hover:border-brand-700;
+  }
+
+  .flex-shrink-0 {
+    flex-shrink: 0;
+  }
+
+  .min-w-0 {
+    min-width: 0;
+  }
+
+  .truncate-text {
+    @apply truncate;
+  }
+
+  .break-words {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
   }
 }
 
@@ -264,6 +312,15 @@
 
   .truncate-ellipsis {
     @apply truncate;
+  }
+
+  .container-page {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    min-width: 0;
+  }
+
+  .section-container {
+    @apply w-full min-w-0;
   }
 }
 

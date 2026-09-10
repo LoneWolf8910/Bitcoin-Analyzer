@@ -1,6 +1,7 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import time
 
 from backend.database.connection import init_db, get_db
 from backend.services.data_ingestion import run_ingestion, get_stats
@@ -12,6 +13,7 @@ from backend.services.search_service import (
 )
 from backend.services.graph_service import get_wallet_graph
 from backend.services.feature_engineering import extract_wallet_features, FEATURE_DESCRIPTIONS
+from backend.services.blockchain_api import blockchain_api, BlockchainAPIError
 from backend.ml.train import train_model
 from backend.ml.predict import predict_anomaly, get_model_info
 from backend.services.risk_engine import calculate_wallet_risk
@@ -83,23 +85,53 @@ async def get_statistics():
 
 
 @app.get("/api/wallet/{wallet_address}", response_model=WalletResponse)
-async def get_wallet_details(wallet_address: str):
-    with get_db() as db:
-        wallet = get_wallet(db, wallet_address)
-        if not wallet:
-            raise HTTPException(status_code=404, detail=f"Wallet not found: {wallet_address}")
-        return WalletResponse(
-            wallet_address=wallet.wallet_address,
-            transaction_count=wallet.transaction_count,
-            total_received=wallet.total_received,
-            total_sent=wallet.total_sent,
-            net_flow=wallet.net_flow(),
-            incoming_count=wallet.incoming_count,
-            outgoing_count=wallet.outgoing_count,
-            first_seen=wallet.first_seen.isoformat() if wallet.first_seen else None,
-            last_seen=wallet.last_seen.isoformat() if wallet.last_seen else None,
-            dominant_label=wallet.dominant_label,
-        )
+async def get_wallet_details(wallet_address: str, source: str = Query("auto", regex="^(auto|local|blockchain)$")):
+    if source in ("auto", "local"):
+        with get_db() as db:
+            wallet = get_wallet(db, wallet_address)
+            if wallet:
+                return WalletResponse(
+                    wallet_address=wallet.wallet_address,
+                    transaction_count=wallet.transaction_count,
+                    total_received=wallet.total_received,
+                    total_sent=wallet.total_sent,
+                    net_flow=wallet.net_flow(),
+                    incoming_count=wallet.incoming_count,
+                    outgoing_count=wallet.outgoing_count,
+                    first_seen=wallet.first_seen.isoformat() if wallet.first_seen else None,
+                    last_seen=wallet.last_seen.isoformat() if wallet.last_seen else None,
+                    dominant_label=wallet.dominant_label,
+                )
+            if source == "local":
+                raise HTTPException(status_code=404, detail=f"Wallet not found in local database: {wallet_address}")
+
+    if source in ("auto", "blockchain"):
+        try:
+            addr_info = await blockchain_api.get_address_info(wallet_address)
+            if addr_info:
+                chain_stats = addr_info.get("chain_stats", {})
+                mempool_stats = addr_info.get("mempool_stats", {})
+                total_received = (chain_stats.get("funded_txo_sum", 0) + mempool_stats.get("funded_txo_sum", 0)) / 1e8
+                total_sent = (chain_stats.get("spent_txo_sum", 0) + mempool_stats.get("spent_txo_sum", 0)) / 1e8
+                tx_count = chain_stats.get("tx_count", 0) + mempool_stats.get("tx_count", 0)
+
+                return WalletResponse(
+                    wallet_address=wallet_address,
+                    transaction_count=tx_count,
+                    total_received=total_received,
+                    total_sent=total_sent,
+                    net_flow=total_received - total_sent,
+                    incoming_count=0,
+                    outgoing_count=0,
+                    first_seen=None,
+                    last_seen=None,
+                    dominant_label="normal",
+                )
+        except BlockchainAPIError as e:
+            if source == "blockchain":
+                raise HTTPException(status_code=502, detail=f"Blockchain API error: {str(e)}")
+
+    raise HTTPException(status_code=404, detail=f"Wallet not found: {wallet_address}")
 
 
 @app.get("/api/wallet/{wallet_address}/transactions", response_model=PaginatedTransactionsResponse)
@@ -241,6 +273,95 @@ async def search(q: str = Query(..., min_length=2, max_length=100)):
         total_wallets=len(wallet_results),
         total_transactions=len(tx_results),
     )
+
+
+@app.post("/api/wallet/{wallet_address}/sync")
+async def sync_wallet_from_blockchain(wallet_address: str):
+    try:
+        addr_info = await blockchain_api.get_address_info(wallet_address)
+        if not addr_info:
+            raise HTTPException(status_code=404, detail=f"Wallet not found on blockchain: {wallet_address}")
+
+        txs = await blockchain_api.get_address_transactions(wallet_address, limit=200)
+
+        with get_db() as db:
+            from backend.database.models import Wallet, Transaction
+            from datetime import datetime
+            from sqlalchemy.exc import IntegrityError
+
+            wallet = db.query(Wallet).filter(Wallet.wallet_address == wallet_address).first()
+            if not wallet:
+                wallet = Wallet(wallet_address=wallet_address)
+                db.add(wallet)
+
+            chain_stats = addr_info.get("chain_stats", {})
+            mempool_stats = addr_info.get("mempool_stats", {})
+            wallet.total_received = (chain_stats.get("funded_txo_sum", 0) + mempool_stats.get("funded_txo_sum", 0)) / 1e8
+            wallet.total_sent = (chain_stats.get("spent_txo_sum", 0) + mempool_stats.get("spent_txo_sum", 0)) / 1e8
+            wallet.transaction_count = chain_stats.get("tx_count", 0) + mempool_stats.get("tx_count", 0)
+            wallet.dominant_label = "normal"
+
+            synced_count = 0
+            for tx_data in txs:
+                txid = tx_data.get("txid")
+                timestamp = datetime.fromtimestamp(tx_data.get("status", {}).get("block_time", time.time()))
+                fee = tx_data.get("fee", 0) / 1e8
+                block_height = tx_data.get("status", {}).get("block_height", 0)
+                confirmed = tx_data.get("status", {}).get("confirmed", False)
+                confirmation_count = 1 if confirmed else 0
+
+                input_wallets = set()
+                output_wallets = set()
+
+                for vin in tx_data.get("vin", []):
+                    prevout = vin.get("prevout", {})
+                    scriptpubkey_address = prevout.get("scriptpubkey_address")
+                    if scriptpubkey_address:
+                        input_wallets.add(scriptpubkey_address)
+
+                for vout in tx_data.get("vout", []):
+                    scriptpubkey_address = vout.get("scriptpubkey_address")
+                    if scriptpubkey_address:
+                        output_wallets.add(scriptpubkey_address)
+
+                for out_addr in output_wallets:
+                    if out_addr == wallet_address:
+                        continue
+                    vout_for_addr = next((v for v in tx_data.get("vout", []) if v.get("scriptpubkey_address") == out_addr), None)
+                    amount = vout_for_addr.get("value", 0) / 1e8 if vout_for_addr else 0
+
+                    tx = Transaction(
+                        timestamp=timestamp,
+                        txid=f"{txid}:{out_addr}",
+                        input_wallet=wallet_address,
+                        output_wallet=out_addr,
+                        input_amount=0,
+                        output_amount=amount,
+                        fee=fee,
+                        script_type="unknown",
+                        src_ip="0.0.0.0",
+                        src_port=0,
+                        dst_ip="0.0.0.0",
+                        dst_port=0,
+                        transaction_size=0,
+                        block_height=block_height,
+                        confirmation_count=confirmation_count,
+                        wallet_label="normal",
+                    )
+                    db.add(tx)
+                    try:
+                        db.commit()
+                        synced_count += 1
+                    except IntegrityError:
+                        db.rollback()
+
+            db.commit()
+
+        return {"status": "synced", "wallet": wallet_address, "transactions_synced": synced_count}
+    except BlockchainAPIError as e:
+        raise HTTPException(status_code=502, detail=f"Blockchain API error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
 
 @app.post("/api/ml/train")

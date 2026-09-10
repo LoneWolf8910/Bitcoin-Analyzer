@@ -75,6 +75,7 @@ export function TransactionGraph({
   const [currentLayout, setCurrentLayout] = useState('cose')
   const [showLabels, setShowLabels] = useState(true)
   const [showLegend, setShowLegend] = useState(true)
+  const [detailPanelPosition, setDetailPanelPosition] = useState({ right: 16, bottom: 16 })
 
   const initializeCy = useCallback(() => {
     if (cyRef.current || !containerRef.current) return
@@ -103,7 +104,7 @@ export function TransactionGraph({
             'width': 'data(size)',
             'height': 'data(size)',
             'min-zoomed-font-size': 8,
-            'text-opacity': showLabels ? 1 : 0,
+            'text-opacity': 1,
           },
         },
         {
@@ -122,7 +123,7 @@ export function TransactionGraph({
             'text-outline-opacity': 1,
             'text-rotation': 'autorotate',
             'text-margin-y': -8,
-            'text-opacity': showLabels ? 1 : 0,
+            'text-opacity': 1,
             'opacity': 0.7,
           },
         },
@@ -210,7 +211,7 @@ export function TransactionGraph({
     cy.on('layoutstop', () => setLayoutRunning(false))
 
     return cy
-  }, [onNodeClick, onEdgeClick, showLabels])
+  }, [onNodeClick, onEdgeClick])
 
   const updateGraph = useCallback(() => {
     const cy = cyRef.current
@@ -289,18 +290,34 @@ export function TransactionGraph({
         cyRef.current = null
       }
     }
-  }, [initializeCy])
+  }, [])
 
   useEffect(() => {
-    if (cyRef.current && data) {
-      updateGraph()
+    if (!data) return
+    
+    const applyGraph = () => {
+      if (cyRef.current) {
+        updateGraph()
+      } else {
+        // Retry after a short delay if cy isn't ready yet
+        const timer = setTimeout(applyGraph, 50)
+        return () => clearTimeout(timer)
+      }
     }
+    
+    applyGraph()
   }, [data, updateGraph])
 
   useEffect(() => {
     if (cyRef.current) {
-      cyRef.current.style().selector('node').style('text-opacity', showLabels ? 1 : 0).update()
-      cyRef.current.style().selector('edge').style('text-opacity', showLabels ? 1 : 0).update()
+      cyRef.current.style()
+        .selector('node')
+        .style('text-opacity', showLabels ? 1 : 0)
+        .update()
+      cyRef.current.style()
+        .selector('edge')
+        .style('text-opacity', showLabels ? 1 : 0)
+        .update()
     }
   }, [showLabels])
 
@@ -347,7 +364,7 @@ export function TransactionGraph({
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center card">
+      <div className="h-full flex items-center justify-center card min-w-0">
         <div className="text-center">
           <div className="w-10 h-10 border-3 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-surface-500 dark:text-surface-400 text-sm">Loading graph...</p>
@@ -359,13 +376,13 @@ export function TransactionGraph({
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center card p-6">
+      <div className="h-full flex items-center justify-center card p-6 min-w-0">
         <div className="text-center text-danger-600 dark:text-danger-400">
           <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77 1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <p className="text-sm font-medium">Failed to load graph</p>
-          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">{error}</p>
+          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1 break-words">{error}</p>
         </div>
       </div>
     )
@@ -373,7 +390,7 @@ export function TransactionGraph({
 
   if (!data?.nodes?.length) {
     return (
-      <div className="h-full flex items-center justify-center card p-6">
+      <div className="h-full flex items-center justify-center card p-6 min-w-0">
         <div className="text-center text-surface-500 dark:text-surface-400">
           <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -386,8 +403,8 @@ export function TransactionGraph({
   }
 
   return (
-    <div className="h-full card overflow-hidden flex flex-col">
-      <div className="p-4 border-b border-surface-200 dark:border-surface-700 flex flex-wrap items-center justify-between gap-3">
+    <div className="h-full card overflow-hidden flex flex-col min-w-0">
+      <div className="p-4 border-b border-surface-200 dark:border-surface-700 flex flex-wrap items-center justify-between gap-3 min-w-0">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <h3 className="section-title truncate">
             <svg className="w-5 h-5 text-surface-400 dark:text-surface-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -396,25 +413,25 @@ export function TransactionGraph({
             Transaction Graph
           </h3>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-surface-500 dark:text-surface-400 px-2 py-1 bg-surface-100 dark:bg-surface-800 rounded-full font-mono">
+            <span className="text-xs text-surface-500 dark:text-surface-400 px-2 py-1 bg-surface-100 dark:bg-surface-800 rounded-full font-mono flex-shrink-0">
               {stats.nodes} nodes • {stats.edges} edges
             </span>
             {(stats.anomalous || stats.rapid || stats.highActivity) && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {stats.anomalous > 0 && (
-                  <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium flex items-center gap-1">
+                  <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium flex items-center gap-1 flex-shrink-0">
                     <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
                     {stats.anomalous} anomalous
                   </span>
                 )}
                 {stats.rapid > 0 && (
-                  <span className="px-2 py-0.5 bg-danger-100 dark:bg-danger-900/30 text-danger-700 dark:text-danger-300 rounded-full text-xs font-medium flex items-center gap-1">
+                  <span className="px-2 py-0.5 bg-danger-100 dark:bg-danger-900/30 text-danger-700 dark:text-danger-300 rounded-full text-xs font-medium flex items-center gap-1 flex-shrink-0">
                     <span className="w-1.5 h-1.5 bg-danger-500 rounded-full" />
                     {stats.rapid} rapid
                   </span>
                 )}
                 {stats.highActivity > 0 && (
-                  <span className="px-2 py-0.5 bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-300 rounded-full text-xs font-medium flex items-center gap-1">
+                  <span className="px-2 py-0.5 bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-300 rounded-full text-xs font-medium flex items-center gap-1 flex-shrink-0">
                     <span className="w-1.5 h-1.5 bg-warning-500 rounded-full" />
                     {stats.highActivity} high activity
                   </span>
@@ -424,7 +441,7 @@ export function TransactionGraph({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
           <div className="flex items-center gap-1.5 px-2 py-1 bg-surface-100 dark:bg-surface-800 rounded-lg">
             <label className="text-xs text-surface-500 dark:text-surface-400">Layout:</label>
             <select
@@ -480,7 +497,7 @@ export function TransactionGraph({
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 relative min-h-[500px]" />
+      <div ref={containerRef} className="flex-1 relative min-h-[500px] min-w-0" />
 
       {(selectedNode || selectedEdge) && (
         <DetailPanel
@@ -503,14 +520,14 @@ export function TransactionGraph({
 function DetailPanel({ node, edge, onClose }) {
   if (node) {
     return (
-      <div className="absolute bottom-4 right-4 w-80 card-elevated p-4 shadow-2xl z-20 animate-slide-in max-h-[70vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="font-semibold text-surface-900 dark:text-surface-100">Wallet Details</h4>
-          <button onClick={onClose} className="text-surface-400 dark:text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 p-1 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors" aria-label="Close details">
+      <div className="fixed right-4 bottom-4 w-80 max-w-[calc(100vw-32px)] card-elevated p-4 shadow-2xl z-20 animate-slide-in max-h-[70vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3 min-w-0">
+          <h4 className="font-semibold text-surface-900 dark:text-surface-100 truncate">Wallet Details</h4>
+          <button onClick={onClose} className="text-surface-400 dark:text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 p-1 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors flex-shrink-0" aria-label="Close details">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-        <div className="space-y-3 text-sm">
+        <div className="space-y-3 text-sm min-w-0">
           <DetailRow label="Address" value={truncateAddress(node.id, 8, 6)} monospace />
           <DetailRow label="Transactions" value={node.transaction_count ?? 0} monospace />
           <DetailRow label="Received" value={formatCompactBTC(node.total_received ?? 0)} color="text-success-600 dark:text-success-400" monospace />
@@ -521,7 +538,7 @@ function DetailPanel({ node, edge, onClose }) {
           <DetailRow
             label="Label"
             value={
-              <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full ${getWalletLabelColor(node.dominant_label)}`}>
+              <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full ${getWalletLabelColor(node.dominant_label)} flex-shrink-0`}>
                 {node.dominant_label?.replace('_', ' ') ?? 'unknown'}
               </span>
             }
@@ -533,14 +550,14 @@ function DetailPanel({ node, edge, onClose }) {
 
   if (edge) {
     return (
-      <div className="absolute bottom-4 right-4 w-80 card-elevated p-4 shadow-2xl z-20 animate-slide-in max-h-[70vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="font-semibold text-surface-900 dark:text-surface-100">Transaction Details</h4>
-          <button onClick={onClose} className="text-surface-400 dark:text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 p-1 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors" aria-label="Close details">
+      <div className="fixed right-4 bottom-4 w-80 max-w-[calc(100vw-32px)] card-elevated p-4 shadow-2xl z-20 animate-slide-in max-h-[70vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3 min-w-0">
+          <h4 className="font-semibold text-surface-900 dark:text-surface-100 truncate">Transaction Details</h4>
+          <button onClick={onClose} className="text-surface-400 dark:text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 p-1 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors flex-shrink-0" aria-label="Close details">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-        <div className="space-y-3 text-sm">
+        <div className="space-y-3 text-sm min-w-0">
           <DetailRow label="TXID" value={edge.txid} monospace truncate />
           <DetailRow label="Amount" value={formatCompactBTC(edge.amount)} color="text-brand-600 dark:text-brand-400" monospace />
           <DetailRow label="Time" value={formatTimestamp(edge.timestamp)} monospace />
@@ -556,9 +573,9 @@ function DetailPanel({ node, edge, onClose }) {
 
 function DetailRow({ label, value, color, monospace, truncate }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 min-w-0">
       <span className="text-surface-500 dark:text-surface-400 truncate">{label}</span>
-      <span className={`text-surface-900 dark:text-surface-100 font-medium text-right ${monospace ? 'font-mono' : ''} ${color || ''} ${truncate ? 'truncate max-w-[200px]' : ''}`}>
+      <span className={`text-surface-900 dark:text-surface-100 font-medium text-right ${monospace ? 'font-mono' : ''} ${color || ''} ${truncate ? 'truncate max-w-[200px]' : ''} flex-shrink-0`}>
         {value}
       </span>
     </div>
@@ -576,11 +593,11 @@ function Legend() {
   ]
 
   return (
-    <div className="absolute bottom-4 left-4 bg-white/95 dark:bg-surface-900/95 border border-surface-200 dark:border-surface-700 rounded-lg p-3 shadow-lg z-10 backdrop-blur-sm">
+    <div className="fixed left-4 bottom-4 max-w-[calc(100vw-32px)] bg-white/95 dark:bg-surface-900/95 border border-surface-200 dark:border-surface-700 rounded-lg p-3 shadow-lg z-10 backdrop-blur-sm min-w-0">
       <p className="text-xs font-semibold text-surface-700 dark:text-surface-300 mb-2">Legend</p>
       <div className="flex flex-wrap gap-2.5 text-xs text-surface-600 dark:text-surface-400">
         {items.map((item, i) => (
-          <span key={i} className="flex items-center gap-1.5 whitespace-nowrap">
+          <span key={i} className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
             {item.shape === 'edge' ? (
               <svg className="w-6 h-3" viewBox="0 0 24 4" aria-hidden="true">
                 <line x1="2" y1="2" x2="22" y2="2" stroke={item.color} strokeWidth="2" />
