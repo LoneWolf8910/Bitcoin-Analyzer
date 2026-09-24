@@ -98,13 +98,13 @@ export function SearchBar({ onSearch, onInvestigate, searchResults, loading, dis
       </form>
 
       {showResults && hasResults && (
-        <div
-          ref={resultsRef}
-          id="search-results"
-          className="fixed left-0 right-0 mt-2 max-w-2xl mx-auto sm:mx-0 z-50 animate-slide-down"
-          role="listbox"
-        >
-          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl overflow-hidden max-h-96 overflow-y-auto min-w-0">
+<div
+           ref={resultsRef}
+           id="search-results"
+           className="fixed left-0 right-0 mt-2 max-w-2xl mx-auto sm:mx-0 z-50 animate-slide-down"
+           role="listbox"
+         >
+           <div className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl overflow-hidden max-h-96 overflow-y-auto min-w-0">
             {searchResults.wallets?.length > 0 && (
               <div className="border-b border-surface-200 dark:border-surface-700">
                 <p className="px-4 py-2 text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider">Wallets</p>
@@ -169,7 +169,7 @@ export function SearchBar({ onSearch, onInvestigate, searchResults, loading, dis
 
       {query.length >= 2 && searchResults && searchResults.wallets?.length === 0 && searchResults.transactions?.length === 0 && (
         <div className="fixed left-0 right-0 mt-2 max-w-2xl mx-auto sm:mx-0 z-50 animate-slide-down">
-          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-4 text-center min-w-0">
+          <div className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-4 text-center min-w-0">
             <p className="text-surface-500 dark:text-surface-400 text-sm break-words">No results found for <span className="font-mono text-surface-700 dark:text-surface-300">"{query}"</span></p>
           </div>
         </div>

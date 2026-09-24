@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Offline Test Script for SIH 26146 Bitcoin Transaction Analyzer
+Offline Test Script for Bitcoin Transaction Analyzer
 
 This script verifies that the application can operate completely offline.
 Run this test after disconnecting from the internet to confirm offline capability.
@@ -343,7 +343,7 @@ def test_frontend_build():
 def run_all_tests():
     """Run all offline tests."""
     print("=" * 60)
-    print("SIH 26146 - Offline Capability Test")
+    print("Bitcoin Transaction Analyzer - Offline Capability Test")
     print("=" * 60)
     
     tests = [

@@ -593,7 +593,7 @@ function Legend() {
   ]
 
   return (
-    <div className="fixed left-4 bottom-4 max-w-[calc(100vw-32px)] bg-white/95 dark:bg-surface-900/95 border border-surface-200 dark:border-surface-700 rounded-lg p-3 shadow-lg z-10 backdrop-blur-sm min-w-0">
+    <div className="fixed left-4 bottom-4 max-w-[calc(100vw-32px)] bg-surface-100/95 dark:bg-surface-900/95 border border-surface-200 dark:border-surface-700 rounded-lg p-3 shadow-lg z-10 backdrop-blur-sm min-w-0">
       <p className="text-xs font-semibold text-surface-700 dark:text-surface-300 mb-2">Legend</p>
       <div className="flex flex-wrap gap-2.5 text-xs text-surface-600 dark:text-surface-400">
         {items.map((item, i) => (

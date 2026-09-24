@@ -20,6 +20,7 @@
 
   body {
     @apply bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-50 antialiased font-sans;
+    background-color: #EAF2FA;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     min-width: 0;
     overflow-x: hidden;
@@ -105,12 +106,14 @@
   }
 
   .card {
-    @apply bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-sm transition-shadow duration-300;
+    @apply bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl transition-shadow duration-300;
+    box-shadow: 0 4px 20px rgba(30, 41, 59, 0.06);
     min-width: 0;
   }
 
   .card-elevated {
-    @apply bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-lg;
+    @apply bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl;
+    box-shadow: 0 8px 30px rgba(30, 41, 59, 0.08);
     min-width: 0;
   }
 
@@ -156,7 +159,7 @@
   }
 
   .table-container {
-    @apply rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 overflow-x-auto;
+    @apply rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-900 overflow-x-auto;
     min-width: 0;
   }
 
@@ -178,6 +181,7 @@
 
   .skeleton {
     @apply animate-pulse bg-surface-200 dark:bg-surface-700 rounded;
+    background-color: #DCE3EA;
   }
 
   .section-title {
@@ -217,7 +221,13 @@
   }
 
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:border-brand-300 dark:hover:border-brand-700;
+    @apply transition-all duration-300;
+    box-shadow: 0 4px 20px rgba(30, 41, 59, 0.06);
+  }
+  .card-hover:hover {
+    box-shadow: 0 12px 40px rgba(30, 41, 59, 0.12);
+    transform: translateY(-2px);
+    border-color: theme('colors.brand.300');
   }
 
   .flex-shrink-0 {
@@ -296,6 +306,8 @@
 
   .empty-state-icon {
     @apply w-16 h-16 bg-surface-100 dark:bg-surface-800 rounded-full flex items-center justify-center mb-4 text-surface-400 dark:text-surface-500;
+    background-color: #FFFFFF;
+    border: 1px solid #DCE3EA;
   }
 
   .empty-state-title {

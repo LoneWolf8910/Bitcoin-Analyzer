@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
-import { Header } from './components/Header'
 import { SearchBar } from './components/SearchBar'
 import { WalletOverviewCards } from './components/WalletOverviewCards'
 import { RiskSection } from './components/RiskSection'
@@ -8,6 +7,8 @@ import { RecentTransactionsTable } from './components/RecentTransactionsTable'
 import { LoadingOverlay, LoadingSpinner } from './components/Loading'
 import { ErrorDisplay } from './components/Error'
 import { SearchEmptyState } from './components/EmptyState'
+import { Hero } from './components/ui/animated-hero'
+import { GlassNavbar, TxGuardLogo } from './components/ui/glass-navbar'
 import { useInvestigate } from './hooks/useInvestigate'
 import { getHealth } from './services/api'
 
@@ -57,19 +58,22 @@ function App() {
 
   if (loading && !data) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-950 min-w-0">
-        <Header />
+      <div className="min-h-screen bg-surface-50 dark:bg-surface-950 min-w-0 pt-16">
+        <GlassNavbar backendHealth={backendHealth} />
         <LoadingOverlay message="Investigating wallet..." />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-50 min-w-0">
-      <Header />
+    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-50 min-w-0 pt-16">
+      <GlassNavbar backendHealth={backendHealth} />
 
-      <main className="container-page py-6 sm:py-8 min-w-0">
-        <BackendStatusBar health={backendHealth} />
+      {!data && !loading && !error && !searchResults && (
+        <Hero />
+      )}
+
+      <main id="investigation-dashboard" className="container-page py-6 sm:py-8 min-w-0">
 
         <section className="mb-8 animate-fade-in min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 min-w-0">
@@ -149,52 +153,76 @@ function App() {
         )}
       </main>
 
-      <footer className="border-t border-surface-200 dark:border-surface-700 mt-12 min-w-0">
-        <div className="container-page py-4 min-w-0">
-          <p className="text-center text-xs text-surface-500 dark:text-surface-400 truncate">
-            Bitcoin Transaction Analyzer • Smart India Hackathon 2026 • PS 26146 • Offline Mode
-          </p>
+      <footer className="border-t border-surface-200/50 dark:border-surface-700/50 mt-16 min-w-0" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(234, 242, 250, 0.5) 100%)" }}>
+        <div className="container-page py-10 min-w-0">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
+            {/* Brand column */}
+            <div className="md:col-span-1 lg:col-span-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg, #06B6D4 0%, #0891AE 50%, #06B6D4 100%)", boxShadow: "0 4px 16px rgba(6, 182, 212, 0.35)" }}>
+                  <TxGuardLogo />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-surface-900 dark:text-surface-100 font-display tracking-tight text-lg">TxGuard</h3>
+                  <p className="text-xs text-surface-500 dark:text-surface-400 font-mono">Transaction Guardian</p>
+                </div>
+              </div>
+              <p className="text-sm text-surface-600 dark:text-surface-400 max-w-md leading-relaxed">
+                Offline AI-powered Bitcoin transaction analysis. Detect anomalies, assess risk, and visualize transaction graphs in air-gapped environments.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium" style={{ background: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.25)", color: "#15803d" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22c55e" }} />
+                  OFFLINE MODE
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium" style={{ background: "rgba(6, 182, 212, 0.12)", border: "1px solid rgba(6, 182, 212, 0.25)", color: "#0E7490" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#06B6D4" }} />
+                  AIR-GAPPED
+                </span>
+              </div>
+            </div>
+
+            {/* Links column */}
+            <div>
+              <h4 className="font-semibold text-surface-900 dark:text-surface-100 mb-4">Product</h4>
+              <ul className="space-y-2 text-sm text-surface-600 dark:text-surface-400">
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Dashboard</a></li>
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Analytics</a></li>
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Transactions</a></li>
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Risk Scoring</a></li>
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Graph Visualization</a></li>
+              </ul>
+            </div>
+
+            {/* Resources column */}
+            <div>
+              <h4 className="font-semibold text-surface-900 dark:text-surface-100 mb-4">Resources</h4>
+              <ul className="space-y-2 text-sm text-surface-600 dark:text-surface-400">
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Documentation</a></li>
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">API Reference</a></li>
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Offline Architecture</a></li>
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">ML Model Info</a></li>
+                <li><a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">GitHub</a></li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="mt-8 pt-6 border-t border-surface-200/50 dark:border-surface-700/50 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-surface-500 dark:text-surface-400">
+              TxGuard &copy; {new Date().getFullYear()} &mdash; Built for offline Bitcoin analysis
+            </p>
+            <div className="flex items-center gap-4 text-xs text-surface-500 dark:text-surface-400">
+              <span className="font-mono">v0.1.0</span>
+              <span className="hidden sm:inline">|</span>
+              <a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Privacy</a>
+              <span className="hidden sm:inline">|</span>
+              <a href="#" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">License</a>
+            </div>
+          </div>
         </div>
       </footer>
-    </div>
-  )
-}
-
-function BackendStatusBar({ health }) {
-  if (health === null) {
-    return (
-      <div className="mb-6 px-4 py-3 rounded-xl border bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800 flex items-center justify-between gap-4 flex-wrap" role="status" aria-live="polite" aria-busy="true">
-        <div className="flex items-center gap-3 flex-wrap min-w-0">
-          <span className="w-2.5 h-2.5 rounded-full bg-warning-500 animate-pulse flex-shrink-0" aria-hidden="true" />
-          <span className="text-sm font-medium text-surface-700 dark:text-surface-300">Backend: Checking...</span>
-        </div>
-        <div className="text-xs text-surface-500 dark:text-surface-400 font-mono flex-shrink-0">—</div>
-      </div>
-    )
-  }
-
-  const isConnected = health.status === 'ok'
-  const isError = health.status === 'error'
-
-  return (
-    <div className={`mb-6 px-4 py-3 rounded-xl border flex items-center justify-between gap-4 flex-wrap ${isConnected
-      ? 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800'
-      : 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-800'
-    }`} role="status" aria-live="polite">
-      <div className="flex items-center gap-3 flex-wrap min-w-0">
-        <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-success-500 animate-pulse-ring' : 'bg-danger-500'} flex-shrink-0`} aria-hidden="true" />
-        <span className="text-sm font-medium text-surface-700 dark:text-surface-300 truncate">
-          Backend: {isConnected ? 'Connected' : 'Disconnected'}
-        </span>
-        {health.trained_at && (
-          <span className="text-xs text-surface-500 dark:text-surface-400 px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded-full font-mono flex-shrink-0">
-            Model: {new Date(health.trained_at).toLocaleString()}
-          </span>
-        )}
-      </div>
-      <div className="text-xs text-surface-500 dark:text-surface-400 font-mono flex-shrink-0">
-        {health.status} • {health.offline ? 'Air-gapped (Offline Mode)' : 'Online'}
-      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
-# Bitcoin Transaction Analyzer API Documentation
+# TxGuard API Documentation
 
 **Version:** 0.1.0  
-**Project:** Smart India Hackathon 2026 (PS 26146)  
+**Project:** TxGuard  
 **Description:** Offline AI-powered Bitcoin transaction analysis system
 
 ---
@@ -447,8 +447,8 @@ Train the IsolationForest anomaly detection model.
 ```json
 {
   "status": "success",
-  "model_path": "/home/saurav-singh/sih-bitcoin-analyzer/models/wallet_anomaly_model.joblib",
-  "config_path": "/home/saurav-singh/sih-bitcoin-analyzer/models/wallet_anomaly_feature_config.json",
+  "model_path": "models/wallet_anomaly_model.joblib",
+  "config_path": "models/wallet_anomaly_feature_config.json",
   "training_samples": 330,
   "anomalies_detected": 33,
   "anomaly_rate": 0.1,
@@ -472,7 +472,7 @@ Get trained model metadata.
   "contamination": 0.1,
   "n_estimators": 200,
   "features": [...],
-  "model_path": "/home/saurav-singh/sih-bitcoin-analyzer/models/wallet_anomaly_model.joblib"
+  "model_path": "models/wallet_anomaly_model.joblib"
 }
 ```
 
@@ -573,7 +573,7 @@ This system operates completely offline:
 
 ```bash
 # Start backend
-cd sih-bitcoin-analyzer
+cd bitcoin-transaction-analyzer
 source venv/bin/activate
 uvicorn backend.main:app --reload --port 8000
 

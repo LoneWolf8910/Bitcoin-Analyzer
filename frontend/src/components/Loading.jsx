@@ -28,7 +28,7 @@ export function LoadingSpinner({ size = 'md', className = '' }) {
 
 export function LoadingOverlay({ message = 'Loading...' }) {
   return (
-    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-surface-50/90 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="card p-8 text-center min-w-[280px] animate-scale-in">
         <LoadingSpinner size="lg" />
         <p className="mt-4 text-surface-700 font-medium">{message}</p>

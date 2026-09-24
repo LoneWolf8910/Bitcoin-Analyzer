@@ -1,6 +1,6 @@
 # Bitcoin Transaction Dataset Schema
 
-This document describes the structure and semantics of the synthetic Bitcoin transaction dataset generated for SIH 2026 PS 26146.
+This document describes the structure and semantics of the synthetic Bitcoin transaction dataset.
 
 ## Overview
 
@@ -143,7 +143,7 @@ Key parameters:
 
 Run:
 ```bash
-cd sih-bitcoin-analyzer
+cd bitcoin-transaction-analyzer
 python scripts/generate_dataset.py
 ```
 
@@ -151,4 +151,4 @@ python scripts/generate_dataset.py
 
 ## License
 
-Generated for SIH 2026 evaluation purposes. Synthetic data only — no real blockchain data included.
+Generated for evaluation purposes. Synthetic data only — no real blockchain data included.

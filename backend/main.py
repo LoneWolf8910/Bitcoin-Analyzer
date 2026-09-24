@@ -31,7 +31,7 @@ from backend.schemas import (
 
 app = FastAPI(
     title="Bitcoin Transaction Analyzer",
-    description="Offline AI-powered Bitcoin transaction analysis for SIH 2026",
+    description="Offline AI-powered Bitcoin transaction analysis",
     version="0.1.0"
 )
 

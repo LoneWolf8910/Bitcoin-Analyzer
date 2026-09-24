@@ -1,8 +1,8 @@
-# Offline Architecture - SIH 26146 Bitcoin Transaction Analyzer
+# Offline Architecture - TxGuard
 
 ## Overview
 
-This document describes how the Bitcoin Transaction Analyzer operates completely offline, with no internet connectivity required during normal operation.
+This document describes how TxGuard operates completely offline, with no internet connectivity required during normal operation.
 
 ## Architecture Diagram
 
@@ -110,7 +110,7 @@ This document describes how the Bitcoin Transaction Analyzer operates completely
 
 ### 1. Dataset Generation (One-time)
 ```bash
-cd sih-bitcoin-analyzer
+cd bitcoin-transaction-analyzer
 source venv/bin/activate
 python scripts/generate_dataset.py
 ```
@@ -118,7 +118,7 @@ Output: `data/bitcoin_transactions.csv` (12,000 synthetic transactions)
 
 ### 2. Dataset Ingestion (One-time)
 ```bash
-cd sih-bitcoin-analyzer
+cd bitcoin-transaction-analyzer
 source venv/bin/activate
 python scripts/ingest_dataset.py
 ```
@@ -126,7 +126,7 @@ Output: `data/bitcoin_intelligence.db` (SQLite with wallets + transactions)
 
 ### 3. ML Model Training (One-time, re-trainable)
 ```bash
-cd sih-bitcoin-analyzer
+cd bitcoin-transaction-analyzer
 source venv/bin/activate
 python -m backend.ml.train
 ```
@@ -138,7 +138,7 @@ Output: `models/wallet_anomaly_model.joblib` + config
 
 ### 4. Backend Startup
 ```bash
-cd sih-bitcoin-analyzer
+cd bitcoin-transaction-analyzer
 source venv/bin/activate
 uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
@@ -146,14 +146,14 @@ Access: `http://localhost:8000/docs` (Swagger UI)
 
 ### 5. Frontend Startup (Development)
 ```bash
-cd sih-bitcoin-analyzer/frontend
+cd bitcoin-transaction-analyzer/frontend
 npm run dev
 ```
 Access: `http://localhost:5173` (proxies `/api` to backend)
 
 ### 6. Frontend Build (Production)
 ```bash
-cd sih-bitcoin-analyzer/frontend
+cd bitcoin-transaction-analyzer/frontend
 npm run build
 ```
 Output: `frontend/dist/` - serve with any static file server
@@ -172,7 +172,7 @@ curl http://localhost:8000/api/investigate/qSQ3S4dcDQcK5RZVqcJugkg897SQsNc
 
 ### Run Offline Test Suite
 ```bash
-cd sih-bitcoin-analyzer
+cd bitcoin-transaction-analyzer
 source venv/bin/activate
 python scripts/offline_test.py
 ```
@@ -229,7 +229,7 @@ Expected: All 11 tests pass
 ## File Inventory (Offline Required)
 
 ```
-sih-bitcoin-analyzer/
+bitcoin-transaction-analyzer/
 ├── data/
 │   ├── bitcoin_transactions.csv      (3.0 MB)  ← Source dataset
 │   └── bitcoin_intelligence.db       (8.5 MB)  ← SQLite database
