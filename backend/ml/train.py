@@ -13,7 +13,7 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.pipeline import Pipeline
 
 from backend.database.connection import get_db
-from backend.database.models import Wallet
+from backend.database.models import SolanaWallet as Wallet
 from backend.services.feature_engineering import extract_wallet_features, FEATURE_DESCRIPTIONS
 
 

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from backend.database.connection import get_db
-from backend.database.models import Transaction, Wallet
+from backend.database.models import SolanaTransaction, SolanaWallet
 
 
 @dataclass
@@ -47,7 +47,7 @@ def build_wallet_graph(
     G = nx.DiGraph()
 
     with get_db() as db:
-        center = db.query(Wallet).filter(Wallet.wallet_address == center_wallet).first()
+        center = db.query(SolanaWallet).filter(SolanaWallet.wallet_address == center_wallet).first()
         if not center:
             raise ValueError(f"Wallet not found: {center_wallet}")
 
@@ -59,20 +59,22 @@ def build_wallet_graph(
             next_level: Set[str] = set()
 
             for wallet_addr in current_level:
-                transactions = db.query(Transaction).filter(
-                    (Transaction.input_wallet == wallet_addr) | 
-                    (Transaction.output_wallet == wallet_addr)
+                transactions = db.query(SolanaTransaction).filter(
+                    (SolanaTransaction.fee_payer == wallet_addr) | 
+                    (SolanaTransaction.source_ata == wallet_addr) |
+                    (SolanaTransaction.destination_ata == wallet_addr) |
+                    (SolanaTransaction.authority == wallet_addr)
                 ).all()
 
                 for tx in transactions:
-                    source = tx.input_wallet
-                    target = tx.output_wallet
+                    source = tx.source_ata
+                    target = tx.destination_ata
 
                     edges_to_add.append({
                         "source": source,
                         "target": target,
-                        "txid": tx.txid,
-                        "amount": tx.output_amount,
+                        "txid": tx.signature,
+                        "amount": tx.amount_ui,
                         "timestamp": tx.timestamp.isoformat() if tx.timestamp else None,
                     })
 
@@ -88,27 +90,30 @@ def build_wallet_graph(
                 break
 
         wallet_stats = {}
-        wallets = db.query(Wallet).filter(Wallet.wallet_address.in_(visited)).all()
+        wallets = db.query(SolanaWallet).filter(SolanaWallet.wallet_address.in_(visited)).all()
         for w in wallets:
             wallet_stats[w.wallet_address] = {
                 "transaction_count": w.transaction_count,
-                "total_received": w.total_received,
-                "total_sent": w.total_sent,
+                "total_received": w.total_received_sol,
+                "total_sent": w.total_sent_sol,
                 "dominant_label": w.dominant_label,
             }
 
         for addr in visited:
             if addr not in wallet_stats:
-                tx_count = db.query(func.count(Transaction.id)).filter(
-                    (Transaction.input_wallet == addr) | (Transaction.output_wallet == addr)
+                tx_count = db.query(func.count(SolanaTransaction.id)).filter(
+                    (SolanaTransaction.fee_payer == addr) | 
+                    (SolanaTransaction.source_ata == addr) |
+                    (SolanaTransaction.destination_ata == addr) |
+                    (SolanaTransaction.authority == addr)
                 ).scalar() or 0
 
-                received = db.query(func.sum(Transaction.output_amount)).filter(
-                    Transaction.output_wallet == addr
+                received = db.query(func.sum(SolanaTransaction.amount_ui)).filter(
+                    SolanaTransaction.destination_ata == addr
                 ).scalar() or 0.0
 
-                sent = db.query(func.sum(Transaction.output_amount)).filter(
-                    Transaction.input_wallet == addr
+                sent = db.query(func.sum(SolanaTransaction.amount_ui)).filter(
+                    SolanaTransaction.source_ata == addr
                 ).scalar() or 0.0
 
                 wallet_stats[addr] = {

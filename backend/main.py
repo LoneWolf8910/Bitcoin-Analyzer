@@ -2,6 +2,7 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import time
+from sqlalchemy import func
 
 from backend.database.connection import init_db, get_db
 from backend.services.data_ingestion import run_ingestion, get_stats
@@ -30,8 +31,8 @@ from backend.schemas import (
 )
 
 app = FastAPI(
-    title="Bitcoin Transaction Analyzer",
-    description="Offline AI-powered Bitcoin transaction analysis",
+    title="Solana Transaction Analyzer",
+    description="Offline AI-powered Solana transaction analysis with Gulf Stream mempool visualization",
     version="0.1.0"
 )
 
@@ -56,7 +57,7 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    return {"message": "Bitcoin Transaction Analyzer API", "version": "0.1.0"}
+    return {"message": "Solana Transaction Analyzer API", "version": "0.1.0"}
 
 
 @app.post("/api/ingest", response_model=IngestResponse)
@@ -64,8 +65,8 @@ async def trigger_ingestion(background_tasks: BackgroundTasks):
     def ingestion_task():
         from backend.database.connection import get_db
         with get_db() as db:
-            from backend.database.models import Transaction
-            existing = db.query(Transaction).count()
+            from backend.database.models import SolanaTransaction
+            existing = db.query(SolanaTransaction).count()
             if existing > 0:
                 return
         run_ingestion()
@@ -84,87 +85,60 @@ async def get_statistics():
     return StatsResponse(**stats)
 
 
-@app.get("/api/wallet/{wallet_address}", response_model=WalletResponse)
-async def get_wallet_details(wallet_address: str, source: str = Query("auto", regex="^(auto|local|blockchain)$")):
-    if source in ("auto", "local"):
-        with get_db() as db:
-            wallet = get_wallet(db, wallet_address)
-            if wallet:
-                return WalletResponse(
-                    wallet_address=wallet.wallet_address,
-                    transaction_count=wallet.transaction_count,
-                    total_received=wallet.total_received,
-                    total_sent=wallet.total_sent,
-                    net_flow=wallet.net_flow(),
-                    incoming_count=wallet.incoming_count,
-                    outgoing_count=wallet.outgoing_count,
-                    first_seen=wallet.first_seen.isoformat() if wallet.first_seen else None,
-                    last_seen=wallet.last_seen.isoformat() if wallet.last_seen else None,
-                    dominant_label=wallet.dominant_label,
-                )
-            if source == "local":
-                raise HTTPException(status_code=404, detail=f"Wallet not found in local database: {wallet_address}")
+@app.get("/api/solana/wallet/{wallet_address}", response_model=WalletResponse)
+async def get_solana_wallet_details(wallet_address: str):
+    with get_db() as db:
+        wallet = get_wallet(db, wallet_address)
+        if not wallet:
+            raise HTTPException(status_code=404, detail=f"Wallet not found: {wallet_address}")
 
-    if source in ("auto", "blockchain"):
-        try:
-            addr_info = await blockchain_api.get_address_info(wallet_address)
-            if addr_info:
-                chain_stats = addr_info.get("chain_stats", {})
-                mempool_stats = addr_info.get("mempool_stats", {})
-                total_received = (chain_stats.get("funded_txo_sum", 0) + mempool_stats.get("funded_txo_sum", 0)) / 1e8
-                total_sent = (chain_stats.get("spent_txo_sum", 0) + mempool_stats.get("spent_txo_sum", 0)) / 1e8
-                tx_count = chain_stats.get("tx_count", 0) + mempool_stats.get("tx_count", 0)
-
-                return WalletResponse(
-                    wallet_address=wallet_address,
-                    transaction_count=tx_count,
-                    total_received=total_received,
-                    total_sent=total_sent,
-                    net_flow=total_received - total_sent,
-                    incoming_count=0,
-                    outgoing_count=0,
-                    first_seen=None,
-                    last_seen=None,
-                    dominant_label="normal",
-                )
-        except BlockchainAPIError as e:
-            if source == "blockchain":
-                raise HTTPException(status_code=502, detail=f"Blockchain API error: {str(e)}")
-
-    raise HTTPException(status_code=404, detail=f"Wallet not found: {wallet_address}")
+        return WalletResponse(
+            wallet_address=wallet.wallet_address,
+            transaction_count=wallet.transaction_count,
+            total_received=wallet.total_received_sol,
+            total_sent=wallet.total_sent_sol,
+            net_flow=wallet.net_flow_sol(),
+            incoming_count=wallet.incoming_count,
+            outgoing_count=wallet.outgoing_count,
+            first_seen=wallet.first_seen.isoformat() if wallet.first_seen else None,
+            last_seen=wallet.last_seen.isoformat() if wallet.last_seen else None,
+            dominant_label=wallet.dominant_label,
+        )
 
 
-@app.get("/api/wallet/{wallet_address}/transactions", response_model=PaginatedTransactionsResponse)
-async def get_wallet_transactions_endpoint(
+@app.get("/api/solana/wallet/{wallet_address}/transactions", response_model=PaginatedTransactionsResponse)
+async def get_solana_wallet_transactions(
     wallet_address: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200)
+    page_size: int = Query(50, ge=1, le=200),
+    token_symbol: str = Query(None),
+    gulfstream_status: str = Query(None),
 ):
     with get_db() as db:
         wallet = get_wallet(db, wallet_address)
         if not wallet:
             raise HTTPException(status_code=404, detail=f"Wallet not found: {wallet_address}")
 
-        transactions, total = get_wallet_transactions(db, wallet_address, page, page_size)
+        transactions, total = get_wallet_transactions(db, wallet_address, page, page_size, token_symbol, gulfstream_status)
 
         items = [
             TransactionResponse(
                 id=t.id,
                 timestamp=t.timestamp.isoformat(),
                 txid=t.txid,
-                input_wallet=t.input_wallet,
-                output_wallet=t.output_wallet,
-                input_amount=t.input_amount,
-                output_amount=t.output_amount,
-                fee=t.fee,
-                script_type=t.script_type,
-                src_ip=t.src_ip,
-                src_port=t.src_port,
-                dst_ip=t.dst_ip,
-                dst_port=t.dst_port,
-                transaction_size=t.transaction_size,
-                block_height=t.block_height,
-                confirmation_count=t.confirmation_count,
+                input_wallet=t.source_ata,
+                output_wallet=t.destination_ata,
+                input_amount=t.amount_ui,
+                output_amount=t.amount_ui,
+                fee=t.fee / 1e9,
+                script_type=t.token_symbol,
+                src_ip="",
+                src_port=0,
+                dst_ip="",
+                dst_port=0,
+                transaction_size=t.compute_units_consumed,
+                block_height=t.slot,
+                confirmation_count=1 if t.status == "success" else 0,
                 wallet_label=t.wallet_label,
             )
             for t in transactions
@@ -181,69 +155,160 @@ async def get_wallet_transactions_endpoint(
         )
 
 
-@app.get("/api/wallet/{wallet_address}/graph")
-async def get_wallet_graph_endpoint(
-    wallet_address: str,
-    depth: int = Query(2, ge=1, le=3),
-    max_nodes: int = Query(500, ge=10, le=2000)
-):
+@app.get("/api/solana/wallet/{wallet_address}/gulfstream")
+async def get_wallet_gulfstream_stats(wallet_address: str):
     with get_db() as db:
         wallet = get_wallet(db, wallet_address)
         if not wallet:
             raise HTTPException(status_code=404, detail=f"Wallet not found: {wallet_address}")
 
-    try:
-        graph_data = get_wallet_graph(wallet_address, depth=depth, max_nodes=max_nodes)
-        return graph_data
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        from backend.database.models import SolanaTransaction
+        gulfstream_stats = db.query(
+            SolanaTransaction.gulfstream_status,
+            func.count(SolanaTransaction.id)
+        ).filter(
+            SolanaTransaction.fee_payer == wallet_address
+        ).group_by(SolanaTransaction.gulfstream_status).all()
 
+        forwarded_txs = db.query(SolanaTransaction).filter(
+            SolanaTransaction.fee_payer == wallet_address,
+            SolanaTransaction.gulfstream_status.in_(["gulfstream_forwarded", "gulfstream_confirmed", "finalized"])
+        ).all()
 
-@app.get("/api/wallet/{wallet_address}/features")
-async def get_wallet_features(wallet_address: str):
-    with get_db() as db:
-        wallet = get_wallet(db, wallet_address)
-        if not wallet:
-            raise HTTPException(status_code=404, detail=f"Wallet not found: {wallet_address}")
+        avg_latency = 0
+        if forwarded_txs:
+            latencies = []
+            for tx in forwarded_txs:
+                if tx.gulfstream_forwarded_at:
+                    latency = (tx.gulfstream_forwarded_at - tx.timestamp).total_seconds() * 1000
+                    latencies.append(latency)
+            avg_latency = sum(latencies) / len(latencies) if latencies else 0
 
-    try:
-        features = extract_wallet_features(wallet_address)
         return {
             "wallet_address": wallet_address,
-            "features": features,
-            "feature_descriptions": FEATURE_DESCRIPTIONS,
+            "gulfstream_breakdown": {status: count for status, count in gulfstream_stats},
+            "forwarded_count": wallet.gulfstream_forwarded_count,
+            "dropped_count": wallet.gulfstream_dropped_count,
+            "avg_forward_latency_ms": round(avg_latency, 2),
+            "forward_rate": wallet.gulfstream_forwarded_count / wallet.transaction_count if wallet.transaction_count > 0 else 0,
         }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
 
 
-@app.get("/api/transaction/{txid}", response_model=TransactionResponse)
-async def get_transaction_details(txid: str):
-    if len(txid) != 64:
-        raise HTTPException(status_code=400, detail="Invalid TXID format (must be 64 hex characters)")
-
+@app.get("/api/solana/tokens")
+async def get_token_analytics():
     with get_db() as db:
-        transaction = get_transaction(db, txid)
+        from backend.database.models import TokenAnalytics
+        tokens = db.query(TokenAnalytics).order_by(TokenAnalytics.total_volume_ui.desc()).all()
+        return [t.to_dict() for t in tokens]
+
+
+@app.get("/api/solana/gulfstream/analytics")
+async def get_gulfstream_analytics(
+    limit: int = Query(100, ge=1, le=1000),
+):
+    with get_db() as db:
+        from backend.database.models import GulfStreamAnalytics
+        analytics = db.query(GulfStreamAnalytics).order_by(GulfStreamAnalytics.slot.desc()).limit(limit).all()
+        return [a.to_dict() for a in analytics]
+
+
+@app.get("/api/solana/gulfstream/leader-schedule")
+async def get_leader_schedule_analytics():
+    with get_db() as db:
+        from backend.database.models import GulfStreamAnalytics, SolanaTransaction
+        recent = db.query(GulfStreamAnalytics).order_by(GulfStreamAnalytics.slot.desc()).limit(500).all()
+
+        slots = [a.slot for a in recent]
+        forward_rates = [a.forward_rate() for a in recent]
+        drop_rates = [a.drop_rate() for a in recent]
+        latencies = [a.avg_forward_latency_ms for a in recent]
+        efficiencies = [a.leader_schedule_efficiency for a in recent]
+
+        total_tx = sum(a.total_transactions for a in recent)
+        total_forwarded = sum(a.forwarded_count for a in recent)
+        total_dropped = sum(a.dropped_count for a in recent)
+        avg_latency = sum(latencies) / len(latencies) if latencies else 0
+        avg_efficiency = sum(efficiencies) / len(efficiencies) if efficiencies else 0
+
+        return {
+            "slots_analyzed": len(recent),
+            "total_transactions": total_tx,
+            "total_forwarded": total_forwarded,
+            "total_dropped": total_dropped,
+            "overall_forward_rate": total_forwarded / total_tx if total_tx > 0 else 0,
+            "overall_drop_rate": total_dropped / total_tx if total_tx > 0 else 0,
+            "avg_forward_latency_ms": round(avg_latency, 2),
+            "avg_leader_efficiency": round(avg_efficiency, 4),
+            "slot_history": [
+                {
+                    "slot": s,
+                    "forward_rate": fr,
+                    "drop_rate": dr,
+                    "latency_ms": l,
+                    "efficiency": e,
+                }
+                for s, fr, dr, l, e in zip(slots, forward_rates, drop_rates, latencies, efficiencies)
+            ],
+        }
+
+
+@app.get("/api/solana/wallet/{wallet_address}/token-holdings")
+async def get_wallet_token_holdings(wallet_address: str):
+    with get_db() as db:
+        wallet = get_wallet(db, wallet_address)
+        if not wallet:
+            raise HTTPException(status_code=404, detail=f"Wallet not found: {wallet_address}")
+
+        from backend.database.models import SolanaTransaction
+        holdings = db.query(
+            SolanaTransaction.token_symbol,
+            SolanaTransaction.token_mint,
+            func.sum(SolanaTransaction.amount_ui).label("total_amount"),
+            func.count(SolanaTransaction.id).label("transfer_count"),
+        ).filter(
+            (SolanaTransaction.source_ata == wallet_address) | (SolanaTransaction.destination_ata == wallet_address)
+        ).group_by(
+            SolanaTransaction.token_symbol, SolanaTransaction.token_mint
+        ).all()
+
+        return {
+            "wallet_address": wallet_address,
+            "holdings": [
+                {
+                    "token_symbol": h.token_symbol,
+                    "token_mint": h.token_mint,
+                    "total_amount": round(h.total_amount, 4),
+                    "transfer_count": h.transfer_count,
+                }
+                for h in holdings
+            ],
+        }
+
+
+@app.get("/api/solana/transaction/{signature}", response_model=TransactionResponse)
+async def get_solana_transaction_details(signature: str):
+    with get_db() as db:
+        transaction = get_transaction(db, signature)
         if not transaction:
-            raise HTTPException(status_code=404, detail=f"Transaction not found: {txid}")
+            raise HTTPException(status_code=404, detail=f"Transaction not found: {signature}")
 
         return TransactionResponse(
             id=transaction.id,
             timestamp=transaction.timestamp.isoformat(),
             txid=transaction.txid,
-            input_wallet=transaction.input_wallet,
-            output_wallet=transaction.output_wallet,
-            input_amount=transaction.input_amount,
-            output_amount=transaction.output_amount,
-            fee=transaction.fee,
-            script_type=transaction.script_type,
-            src_ip=transaction.src_ip,
-            src_port=transaction.src_port,
-            dst_ip=transaction.dst_ip,
-            dst_port=transaction.dst_port,
-            transaction_size=transaction.transaction_size,
-            block_height=transaction.block_height,
-            confirmation_count=transaction.confirmation_count,
+            input_wallet=transaction.source_ata,
+            output_wallet=transaction.destination_ata,
+            input_amount=transaction.amount_ui,
+            output_amount=transaction.amount_ui,
+            fee=transaction.fee / 1e9,
+            script_type=transaction.token_symbol,
+            src_ip="",
+            src_port=0,
+            dst_ip="",
+            dst_port=0,
+            transaction_size=transaction.compute_units_consumed,
+            block_height=transaction.slot,
+            confirmation_count=1 if transaction.status == "success" else 0,
             wallet_label=transaction.wallet_label,
         )
 
@@ -273,95 +338,6 @@ async def search(q: str = Query(..., min_length=2, max_length=100)):
         total_wallets=len(wallet_results),
         total_transactions=len(tx_results),
     )
-
-
-@app.post("/api/wallet/{wallet_address}/sync")
-async def sync_wallet_from_blockchain(wallet_address: str):
-    try:
-        addr_info = await blockchain_api.get_address_info(wallet_address)
-        if not addr_info:
-            raise HTTPException(status_code=404, detail=f"Wallet not found on blockchain: {wallet_address}")
-
-        txs = await blockchain_api.get_address_transactions(wallet_address, limit=200)
-
-        with get_db() as db:
-            from backend.database.models import Wallet, Transaction
-            from datetime import datetime
-            from sqlalchemy.exc import IntegrityError
-
-            wallet = db.query(Wallet).filter(Wallet.wallet_address == wallet_address).first()
-            if not wallet:
-                wallet = Wallet(wallet_address=wallet_address)
-                db.add(wallet)
-
-            chain_stats = addr_info.get("chain_stats", {})
-            mempool_stats = addr_info.get("mempool_stats", {})
-            wallet.total_received = (chain_stats.get("funded_txo_sum", 0) + mempool_stats.get("funded_txo_sum", 0)) / 1e8
-            wallet.total_sent = (chain_stats.get("spent_txo_sum", 0) + mempool_stats.get("spent_txo_sum", 0)) / 1e8
-            wallet.transaction_count = chain_stats.get("tx_count", 0) + mempool_stats.get("tx_count", 0)
-            wallet.dominant_label = "normal"
-
-            synced_count = 0
-            for tx_data in txs:
-                txid = tx_data.get("txid")
-                timestamp = datetime.fromtimestamp(tx_data.get("status", {}).get("block_time", time.time()))
-                fee = tx_data.get("fee", 0) / 1e8
-                block_height = tx_data.get("status", {}).get("block_height", 0)
-                confirmed = tx_data.get("status", {}).get("confirmed", False)
-                confirmation_count = 1 if confirmed else 0
-
-                input_wallets = set()
-                output_wallets = set()
-
-                for vin in tx_data.get("vin", []):
-                    prevout = vin.get("prevout", {})
-                    scriptpubkey_address = prevout.get("scriptpubkey_address")
-                    if scriptpubkey_address:
-                        input_wallets.add(scriptpubkey_address)
-
-                for vout in tx_data.get("vout", []):
-                    scriptpubkey_address = vout.get("scriptpubkey_address")
-                    if scriptpubkey_address:
-                        output_wallets.add(scriptpubkey_address)
-
-                for out_addr in output_wallets:
-                    if out_addr == wallet_address:
-                        continue
-                    vout_for_addr = next((v for v in tx_data.get("vout", []) if v.get("scriptpubkey_address") == out_addr), None)
-                    amount = vout_for_addr.get("value", 0) / 1e8 if vout_for_addr else 0
-
-                    tx = Transaction(
-                        timestamp=timestamp,
-                        txid=f"{txid}:{out_addr}",
-                        input_wallet=wallet_address,
-                        output_wallet=out_addr,
-                        input_amount=0,
-                        output_amount=amount,
-                        fee=fee,
-                        script_type="unknown",
-                        src_ip="0.0.0.0",
-                        src_port=0,
-                        dst_ip="0.0.0.0",
-                        dst_port=0,
-                        transaction_size=0,
-                        block_height=block_height,
-                        confirmation_count=confirmation_count,
-                        wallet_label="normal",
-                    )
-                    db.add(tx)
-                    try:
-                        db.commit()
-                        synced_count += 1
-                    except IntegrityError:
-                        db.rollback()
-
-            db.commit()
-
-        return {"status": "synced", "wallet": wallet_address, "transactions_synced": synced_count}
-    except BlockchainAPIError as e:
-        raise HTTPException(status_code=502, detail=f"Blockchain API error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
 
 @app.post("/api/ml/train")
@@ -457,9 +433,9 @@ async def investigate_wallet(
             "transaction_count": wallet.transaction_count,
             "incoming_count": wallet.incoming_count,
             "outgoing_count": wallet.outgoing_count,
-            "total_received": wallet.total_received,
-            "total_sent": wallet.total_sent,
-            "net_flow": wallet.net_flow(),
+            "total_received": wallet.total_received_sol,
+            "total_sent": wallet.total_sent_sol,
+            "net_flow": wallet.net_flow_sol(),
             "first_seen": wallet.first_seen.isoformat() if wallet.first_seen else None,
             "last_seen": wallet.last_seen.isoformat() if wallet.last_seen else None,
             "dominant_label": wallet.dominant_label,
@@ -467,12 +443,13 @@ async def investigate_wallet(
 
         statistics = {
             "total_transactions": wallet.transaction_count,
-            "total_received_btc": wallet.total_received,
-            "total_sent_btc": wallet.total_sent,
-            "net_flow_btc": wallet.net_flow(),
+            "total_received_sol": wallet.total_received_sol,
+            "total_sent_sol": wallet.total_sent_sol,
+            "net_flow_sol": wallet.net_flow_sol(),
             "incoming_count": wallet.incoming_count,
             "outgoing_count": wallet.outgoing_count,
-            "active_days": (wallet.last_seen - wallet.first_seen).days if wallet.first_seen and wallet.last_seen else 0,
+            "token_diversity": wallet.token_diversity,
+            "unique_counterparties": wallet.unique_counterparties,
         }
 
         recent_txs, _ = get_wallet_transactions(db, wallet_address, page=1, page_size=recent_tx_limit)
@@ -480,20 +457,20 @@ async def investigate_wallet(
             {
                 "id": t.id,
                 "timestamp": t.timestamp.isoformat(),
-                "txid": t.txid,
-                "input_wallet": t.input_wallet,
-                "output_wallet": t.output_wallet,
-                "input_amount": t.input_amount,
-                "output_amount": t.output_amount,
-                "fee": t.fee,
-                "script_type": t.script_type,
-                "src_ip": t.src_ip,
-                "src_port": t.src_port,
-                "dst_ip": t.dst_ip,
-                "dst_port": t.dst_port,
-                "transaction_size": t.transaction_size,
-                "block_height": t.block_height,
-                "confirmation_count": t.confirmation_count,
+                "txid": t.signature,
+                "input_wallet": t.source_ata,
+                "output_wallet": t.destination_ata,
+                "input_amount": t.amount_ui,
+                "output_amount": t.amount_ui,
+                "fee": t.fee / 1e9,
+                "script_type": t.token_symbol,
+                "src_ip": "",
+                "src_port": 0,
+                "dst_ip": "",
+                "dst_port": 0,
+                "transaction_size": t.compute_units_consumed,
+                "block_height": t.slot,
+                "confirmation_count": 1 if t.status == "success" else 0,
                 "wallet_label": t.wallet_label,
             }
             for t in recent_txs
@@ -533,6 +510,22 @@ async def investigate_wallet(
         "stats": graph_result["stats"],
     }
 
+    gulfstream = {}
+    with get_db() as db:
+        from backend.database.models import SolanaTransaction, SolanaWallet
+        wallet_db = db.query(SolanaWallet).filter(SolanaWallet.wallet_address == wallet_address).first()
+        gulfstream_stats = db.query(
+            SolanaTransaction.gulfstream_status,
+            func.count(SolanaTransaction.id)
+        ).filter(
+            SolanaTransaction.fee_payer == wallet_address
+        ).group_by(SolanaTransaction.gulfstream_status).all()
+        gulfstream = {
+            "breakdown": {status: count for status, count in gulfstream_stats},
+            "forwarded_count": wallet_db.gulfstream_forwarded_count if wallet_db else 0,
+            "dropped_count": wallet_db.gulfstream_dropped_count if wallet_db else 0,
+        }
+
     return {
         "wallet": wallet_info,
         "statistics": statistics,
@@ -541,6 +534,7 @@ async def investigate_wallet(
         "risk": risk,
         "graph": graph,
         "recent_transactions": recent_transactions,
+        "gulfstream": gulfstream,
     }
 
 

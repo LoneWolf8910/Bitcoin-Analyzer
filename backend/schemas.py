@@ -16,9 +16,13 @@ class IngestResponse(BaseModel):
 class StatsResponse(BaseModel):
     transaction_count: int
     wallet_count: int
-    total_btc_volume: float
+    total_volume_ui: float
     earliest_timestamp: Optional[str]
     latest_timestamp: Optional[str]
+    gulfstream_total: int = 0
+    gulfstream_forwarded: int = 0
+    gulfstream_dropped: int = 0
+    gulfstream_avg_latency_ms: float = 0.0
 
 
 class WalletResponse(BaseModel):

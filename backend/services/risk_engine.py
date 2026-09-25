@@ -3,7 +3,7 @@ from dataclasses import dataclass, asdict
 import numpy as np
 
 from backend.database.connection import get_db
-from backend.database.models import Wallet, Transaction
+from backend.database.models import SolanaWallet as Wallet, SolanaTransaction as Transaction
 from backend.services.feature_engineering import extract_wallet_features
 from backend.ml.predict import predict_anomaly, load_model
 from backend.services.graph_service import build_wallet_graph

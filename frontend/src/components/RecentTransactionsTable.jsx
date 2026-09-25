@@ -1,6 +1,6 @@
 import { formatTimestamp, formatCompactBTC, truncateAddress, truncateTxId, getWalletLabelColor } from '../utils/formatters.jsx'
 
-export function RecentTransactionsTable({ transactions, loading, error }) {
+export function RecentTransactionsTable({ transactions, loading, error, walletAddress }) {
   if (loading) {
     return <TableSkeleton />
   }
@@ -32,7 +32,7 @@ export function RecentTransactionsTable({ transactions, loading, error }) {
     )
   }
 
-  const mainWallet = transactions[0]?.input_wallet === transactions[0]?.output_wallet ? null : transactions[0]?.input_wallet
+  const mainWallet = walletAddress
 
   return (
     <div className="card overflow-hidden min-w-0">

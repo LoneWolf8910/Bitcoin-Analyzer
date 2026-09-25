@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 
 from backend.database.connection import get_db
-from backend.database.models import Transaction, Wallet
+from backend.database.models import SolanaTransaction as Transaction, SolanaWallet as Wallet
 from backend.services.graph_service import build_wallet_graph
 
 
@@ -62,25 +62,27 @@ def extract_wallet_features(wallet_address: str) -> Dict[str, Any]:
 
         transactions = db.query(Transaction).filter(
             or_(
-                Transaction.input_wallet == wallet_address,
-                Transaction.output_wallet == wallet_address
+                Transaction.fee_payer == wallet_address,
+                Transaction.source_ata == wallet_address,
+                Transaction.destination_ata == wallet_address,
+                Transaction.authority == wallet_address
             )
         ).order_by(Transaction.timestamp).all()
 
         if not transactions:
             return _empty_features(wallet)
 
-        incoming_txs = [tx for tx in transactions if tx.output_wallet == wallet_address]
-        outgoing_txs = [tx for tx in transactions if tx.input_wallet == wallet_address]
+        incoming_txs = [tx for tx in transactions if tx.destination_ata == wallet_address]
+        outgoing_txs = [tx for tx in transactions if tx.source_ata == wallet_address]
 
-        amounts = [tx.output_amount for tx in transactions]
-        incoming_amounts = [tx.output_amount for tx in incoming_txs]
-        outgoing_amounts = [tx.output_amount for tx in outgoing_txs]
+        amounts = [tx.amount_ui for tx in transactions]
+        incoming_amounts = [tx.amount_ui for tx in incoming_txs]
+        outgoing_amounts = [tx.amount_ui for tx in outgoing_txs]
 
         timestamps = [tx.timestamp for tx in transactions if tx.timestamp]
 
-        counterparties_in = set(tx.input_wallet for tx in incoming_txs)
-        counterparties_out = set(tx.output_wallet for tx in outgoing_txs)
+        counterparties_in = set(tx.source_ata for tx in incoming_txs)
+        counterparties_out = set(tx.destination_ata for tx in outgoing_txs)
         all_counterparties = counterparties_in | counterparties_out
 
         rapid_transfer_txs = [tx for tx in transactions if tx.wallet_label == "rapid_transfer"]
@@ -140,7 +142,7 @@ def extract_wallet_features(wallet_address: str) -> Dict[str, Any]:
             incoming_counterparties=len(counterparties_in),
             outgoing_counterparties=len(counterparties_out),
             
-            incoming_outgoing_ratio=safe_divide(sum(incoming_amounts), sum(outgoing_amounts), float('inf')),
+            incoming_outgoing_ratio=safe_divide(sum(incoming_amounts), sum(outgoing_amounts), 1e10),
             rapid_transfer_ratio=safe_divide(len(rapid_transfer_txs), len(transactions), 0.0),
             multi_hop_connections=multi_hop,
             

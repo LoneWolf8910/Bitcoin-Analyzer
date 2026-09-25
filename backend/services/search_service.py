@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, desc
 
-from backend.database.models import Transaction, Wallet
+from backend.database.models import SolanaTransaction, SolanaWallet
 
 
 @dataclass
@@ -18,39 +18,47 @@ class TransactionSummary:
     wallet_label: str
 
 
-def get_wallet(db: Session, wallet_address: str) -> Optional[Wallet]:
-    return db.query(Wallet).filter(Wallet.wallet_address == wallet_address).first()
+def get_wallet(db: Session, wallet_address: str) -> Optional[SolanaWallet]:
+    return db.query(SolanaWallet).filter(SolanaWallet.wallet_address == wallet_address).first()
 
 
 def get_wallet_transactions(
     db: Session,
     wallet_address: str,
     page: int = 1,
-    page_size: int = 50
-) -> Tuple[List[Transaction], int]:
-    query = db.query(Transaction).filter(
+    page_size: int = 50,
+    token_symbol: Optional[str] = None,
+    gulfstream_status: Optional[str] = None,
+) -> Tuple[List[SolanaTransaction], int]:
+    query = db.query(SolanaTransaction).filter(
         or_(
-            Transaction.input_wallet == wallet_address,
-            Transaction.output_wallet == wallet_address
+            SolanaTransaction.fee_payer == wallet_address,
+            SolanaTransaction.source_ata == wallet_address,
+            SolanaTransaction.destination_ata == wallet_address,
+            SolanaTransaction.authority == wallet_address,
         )
-    ).order_by(desc(Transaction.timestamp))
+    ).order_by(desc(SolanaTransaction.timestamp))
+
+    if token_symbol:
+        query = query.filter(SolanaTransaction.token_symbol == token_symbol)
+    if gulfstream_status:
+        query = query.filter(SolanaTransaction.gulfstream_status == gulfstream_status)
 
     total = query.count()
-    total_pages = (total + page_size - 1) // page_size
 
     items = query.offset((page - 1) * page_size).limit(page_size).all()
 
     return items, total
 
 
-def get_transaction(db: Session, txid: str) -> Optional[Transaction]:
-    return db.query(Transaction).filter(Transaction.txid == txid).first()
+def get_transaction(db: Session, txid: str) -> Optional[SolanaTransaction]:
+    return db.query(SolanaTransaction).filter(SolanaTransaction.signature == txid).first()
 
 
 def search_wallets(db: Session, query: str, limit: int = 20) -> List[WalletSummary]:
     search_term = f"%{query}%"
-    wallets = db.query(Wallet).filter(
-        Wallet.wallet_address.ilike(search_term)
+    wallets = db.query(SolanaWallet).filter(
+        SolanaWallet.wallet_address.ilike(search_term)
     ).limit(limit).all()
 
     return [
@@ -61,12 +69,12 @@ def search_wallets(db: Session, query: str, limit: int = 20) -> List[WalletSumma
 
 def search_transactions(db: Session, query: str, limit: int = 20) -> List[TransactionSummary]:
     search_term = f"%{query}%"
-    transactions = db.query(Transaction).filter(
-        Transaction.txid.ilike(search_term)
+    transactions = db.query(SolanaTransaction).filter(
+        SolanaTransaction.signature.ilike(search_term)
     ).limit(limit).all()
 
     return [
-        TransactionSummary(txid=t.txid, wallet_label=t.wallet_label)
+        TransactionSummary(txid=t.signature, wallet_label=t.wallet_label)
         for t in transactions
     ]
 

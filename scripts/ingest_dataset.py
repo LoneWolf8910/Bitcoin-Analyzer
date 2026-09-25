@@ -51,7 +51,7 @@ def main():
     print("=" * 60)
     print(f"Transaction count:   {db_stats['transaction_count']:,}")
     print(f"Wallet count:        {db_stats['wallet_count']:,}")
-    print(f"Total BTC volume:    {db_stats['total_btc_volume']:,.8f}")
+    print(f"Total Volume (UI):   {db_stats['total_volume_ui']:,.4f}")
     print(f"Earliest timestamp:  {db_stats['earliest_timestamp']}")
     print(f"Latest timestamp:    {db_stats['latest_timestamp']}")
 

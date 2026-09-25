@@ -46,9 +46,8 @@ def predict_anomaly(wallet_address: str) -> AnomalyResult:
     prediction = pipeline.predict(X)[0]
 
     anomaly_score = -score
-    is_anomaly = prediction == -1
-
     threshold = -pipeline.named_steps["model"].offset_ if hasattr(pipeline.named_steps["model"], "offset_") else 0.0
+    is_anomaly = anomaly_score > threshold
 
     return AnomalyResult(
         wallet_address=wallet_address,
