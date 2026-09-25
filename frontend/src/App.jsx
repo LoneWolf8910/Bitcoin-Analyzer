@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Hero } from './components/ui/animated-hero'
 import { InvestigationDashboard } from './components/InvestigationDashboard'
+import { LoginPage } from './components/LoginPage'
+import { SignupPage } from './components/SignupPage'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { getHealth } from './services/api'
 
 function LoadingScreen() {
@@ -59,11 +62,47 @@ function LoadingScreen() {
   )
 }
 
-function App() {
+function ProtectedDashboard({ initialWalletAddress, onBackToLanding, user }) {
+  return (
+    <motion.div
+      key="dashboard"
+      className="min-h-screen"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <InvestigationDashboard
+        initialWalletAddress={initialWalletAddress}
+        onBackToLanding={onBackToLanding}
+      />
+    </motion.div>
+  )
+}
+
+function AppContent() {
+  const { user, isLoading, login, register, logout } = useAuth()
   const [view, setView] = useState('landing')
   const [backendHealth, setBackendHealth] = useState(null)
   const [initialWalletAddress, setInitialWalletAddress] = useState(null)
   const [isLoadingInitial, setIsLoadingInitial] = useState(true)
+
+  const handleStartInvestigation = useCallback((walletAddress) => {
+    if (walletAddress) {
+      setInitialWalletAddress(walletAddress)
+    }
+    if (!user) {
+      setView('login')
+    } else {
+      setView('dashboard')
+    }
+  }, [user])
+
+  const handleBackToLanding = useCallback(() => {
+    setView('landing')
+    setInitialWalletAddress(null)
+    window.history.pushState({}, '', '/')
+  }, [])
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -83,36 +122,58 @@ function App() {
     const params = new URLSearchParams(window.location.search)
     const walletParam = params.get('wallet')
     const txParam = params.get('tx')
+    const loginParam = params.get('login')
     
-    if (walletParam) {
+    if (loginParam === 'true') {
+      setView('login')
+    } else if (walletParam) {
       setInitialWalletAddress(walletParam)
-      setView('dashboard')
+      if (user) {
+        setView('dashboard')
+      } else {
+        setView('login')
+      }
     } else if (txParam) {
       setInitialWalletAddress(txParam)
-      setView('dashboard')
+      if (user) {
+        setView('dashboard')
+      } else {
+        setView('login')
+      }
     }
     setIsLoadingInitial(false)
-  }, [])
+  }, [user])
 
-  const handleStartInvestigation = useCallback((walletAddress) => {
-    if (walletAddress) {
-      setInitialWalletAddress(walletAddress)
-    }
-    setView('dashboard')
-  }, [])
-
-  const handleBackToLanding = useCallback(() => {
-    setView('landing')
-    setInitialWalletAddress(null)
-    window.history.pushState({}, '', '/')
-  }, [])
-
-  if (isLoadingInitial) {
+  if (isLoadingInitial || isLoading) {
     return <LoadingScreen />
   }
 
   return (
     <AnimatePresence mode="wait">
+      {view === 'login' && (
+        <motion.div
+          key="login"
+          className="min-h-screen"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <LoginPage onLogin={login} onSignup={() => setView('signup')} />
+        </motion.div>
+      )}
+      {view === 'signup' && (
+        <motion.div
+          key="signup"
+          className="min-h-screen"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <SignupPage onLogin={login} onBackToLogin={() => setView('login')} />
+        </motion.div>
+      )}
       {view === 'landing' && (
         <motion.div
           key="landing"
@@ -122,25 +183,56 @@ function App() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <Hero onStartInvestigation={handleStartInvestigation} />
+          <Hero 
+            onStartInvestigation={handleStartInvestigation} 
+            onLogin={() => setView('login')}
+          />
         </motion.div>
       )}
-      {view === 'dashboard' && (
+      {view === 'dashboard' && user && (
+        <ProtectedDashboard
+          initialWalletAddress={initialWalletAddress}
+          onBackToLanding={handleBackToLanding}
+          user={user}
+        />
+      )}
+      {view === 'dashboard' && !user && (
         <motion.div
-          key="dashboard"
+          key="dashboard-auth"
           className="min-h-screen"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <InvestigationDashboard
-            initialWalletAddress={initialWalletAddress}
-            onBackToLanding={handleBackToLanding}
-          />
+          <LoginPage onLogin={login} onSignup={() => setView('signup')} />
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+function App() {
+  const [backendHealth, setBackendHealth] = useState(null)
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const health = await getHealth()
+        setBackendHealth(health)
+      } catch {
+        setBackendHealth({ status: 'error', offline: false })
+      }
+    }
+    checkHealth()
+    const interval = setInterval(checkHealth, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 

@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-function Hero({ onStartInvestigation }) {
+function Hero({ onStartInvestigation, onLogin }) {
   const [titleNumber, setTitleNumber] = useState(0)
   const titles = useMemo(
     () => ["Offline", "Secure", "Intelligent", "Private", "Reliable"],
@@ -799,6 +799,20 @@ function CTASection({ onStartInvestigation }) {
               <span className="relative flex items-center gap-3 z-10">
                 Start Investigation
                 <MoveRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+              </span>
+            </motion.button>
+            <motion.button
+              onClick={() => onLogin?.()}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-8 py-4 text-lg font-semibold text-white/90
+                bg-transparent backdrop-blur-xl border border-white/30 rounded-xl
+                hover:bg-white/10 transition-all duration-300
+                focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-brand-600"
+            >
+              <span className="flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Sign In
               </span>
             </motion.button>
             <a
